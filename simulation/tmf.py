@@ -10,7 +10,7 @@ from utils import daily_return, process_libor
 AVG_TRADING_DAYS_PER_YEAR = 252
 
 
-def daily_leveraged_etf(etf_prices, daily_libor, leverage=1, expense_ratio=0.2):
+def daily_leveraged_etf(etf_prices, daily_libor, starting_amount=1, leverage=1, expense_ratio=0.2):
     """
     https://www.bogleheads.org/forum/viewtopic.php?f=10&t=272007
     Daily performance of a leveraged ETF (in percentage) is:
@@ -31,16 +31,28 @@ def daily_leveraged_etf(etf_prices, daily_libor, leverage=1, expense_ratio=0.2):
     lev_return = dly_return * leverage
 
     etf_expense = expense_ratio / AVG_TRADING_DAYS_PER_YEAR
-    leverage_expense = (leverage - 1) * daily_libor * 1 / 360
+    # leverage_expense = (leverage - 1) * daily_libor * 1 / 360
+    leverage_expense = (leverage - 1) * daily_libor * 1 / 252
 
-    lev_etf = lev_return - etf_expense
-
-    # print(lev_etf)
-    # print(leverage_expense[leverage_expense.index.isin(lev_etf.index)])
-
-    lev_etf = lev_etf.subtract(leverage_expense, axis=0)  # subtract on index
+    lev_etf = lev_return - etf_expense # subtract etf_expense
+    lev_etf = lev_etf.subtract(leverage_expense, axis=0)  # subtract lev_expense on index
     # since some etf_prices skip a lot of data in the 1980s (but LIBOR is fully logged), remove all NaN
     lev_etf = lev_etf.dropna()
+
+    #
+    # TODO: Account for trading fee & slippage
+    #
+
+    # Compound gain/loss with starting amount
+    total_val = starting_amount
+    lev_etf.iloc[0]['Investment'] = total_val
+    row_idx = 0
+    for index, row in lev_etf.iterrows():
+        if row_idx != 0:
+            total_val = total_val + total_val * row['Close']
+
+        lev_etf.at[index, 'Investment'] = total_val
+        row_idx += 1
 
     return lev_etf
 
@@ -49,8 +61,8 @@ if __name__ == '__main__':
     libor_inception_prev_date = libor_inception_date - timedelta(days=2)  # Jan 1 is market holiday, so get 1985-12-31
     last_data_date = datetime(2021, 9, 1)  # get until Sep 1, 2021
     # first_data_date = datetime(1986, 1, 2)
-    first_data_date = datetime(1992, 1, 2)
-    # first_data_date = datetime(2009, 4, 16)
+    # first_data_date = datetime(1992, 1, 2)
+    first_data_date = datetime(2009, 4, 16)
     tmf_inception_date = datetime(2009, 4, 16)
 
     df_libor = process_libor('../dataset/USD1MTD156N.csv')
@@ -77,14 +89,12 @@ if __name__ == '__main__':
     #
     # Simulate TMF (ER is 1.06%)
     #
-    tmf_returns = daily_leveraged_etf(df_xiusa000ml, daily_libor=df_libor['Value'], leverage=3, expense_ratio=1.06)
-    tmf = 1 + tmf_returns.cumsum()
+    tmf_returns = daily_leveraged_etf(df_xiusa000ml, daily_libor=df_libor['Value'], leverage=3, expense_ratio=1.06, starting_amount=11.15)
 
-    tmf = tmf * 11.15
-    print(tmf)
+    print(tmf_returns)
 
     # Plot TMF
-    plt.plot(tmf, label='TMF (Sim)')
+    plt.plot(tmf_returns.index, tmf_returns['Investment'], label='TMF (Sim)')
     ax = plt.gca()
 
     tmf_actual.plot(ax=ax, label='TMF (Real)')
