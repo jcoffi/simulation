@@ -93,13 +93,56 @@ if __name__ == '__main__':
 
     print(tmf_returns)
 
-    # Plot TMF
-    plt.plot(tmf_returns.index, tmf_returns['Investment'], label='TMF (Sim)')
-    ax = plt.gca()
+    # print(tmf_returns)
+    # Some number crunching and visualization
+    tmf_combined = pd.DataFrame(columns=['XIUSA000ML %', 'Actual TMF %', 'Sim TMF %', 'Ratio (Actual)', 'Ratio (Sim)'])
+    tmf_combined['XIUSA000ML %'] = df_xiusa000ml[-21:].pct_change(1)[1:] * 100
+    tmf_combined['Actual TMF %'] = tmf_actual[-21:].pct_change(1)[1:] * 100
+    tmf_combined['Sim TMF %'] = tmf_returns['Close'][-20:] * 100
+    # tmf_combined['Diff'] = tmf_combined['Actual tmf %'] - tmf_combined['Sim tmf %']
+    tmf_combined['Ratio (Actual)'] = tmf_combined['Actual TMF %'] / tmf_combined['XIUSA000ML %']
+    tmf_combined['Ratio (Sim)'] = tmf_combined['Sim TMF %'] / tmf_combined['XIUSA000ML %']
+    tmf_combined.dropna()
+    print(tmf_combined)
 
-    tmf_actual.plot(ax=ax, label='TMF (Real)')
-    ax.legend()
+    # Visualization for tmf Ratio in Actual vs. Sim
+    tmf_ratios = pd.DataFrame(columns=['XIUSA000ML %', 'Ratio (Actual)', 'Ratio (Sim)'])
+    tmf_ratios['XIUSA000ML %'] = df_xiusa000ml.pct_change(1)
+    tmf_ratios['Ratio (Actual)'] = abs(tmf_actual.pct_change(1)[1:] / tmf_ratios['XIUSA000ML %'])
+    tmf_ratios['Ratio (Sim)'] = abs(tmf_returns['Close'] / tmf_ratios['XIUSA000ML %'])
+    tmf_ratios.dropna()
+    tmf_ratios = tmf_ratios.clip(upper=10, lower=-10)
+    # tmf_ratios['Ratio (Actual)'].where(tmf_ratios['Ratio (Actual)'] <= 10, 10)
 
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 7))
+
+    scatter_size = (2,)
+    ax1.title.set_text('XIUSA000ML to TMF Ratio (abs)')
+    ax1.scatter(tmf_ratios.index, tmf_ratios['Ratio (Actual)'], label='TMF (Actual)', s=scatter_size)
+    ax1.scatter(tmf_ratios.index, tmf_ratios['Ratio (Sim)'], label='TMF (Sim)', s=scatter_size)
+    # tmf_ratios['Ratio (Actual)'].plot(ax=ax1, label='tmf (Actual)')
+    # tmf_ratios['Ratio (Sim)'].plot(ax=ax1, label='tmf (Sim)')
+
+    ax2.title.set_text('TMF Result')
+    # plt.plot(tmf_returns.index, tmf_returns['Investment'], label='tmf (Sim)')
+    tmf_returns['Investment'].plot(ax=ax2, label='TMF (Sim)')
+    tmf_actual.plot(ax=ax2, label='TMF (Real)')
+
+    # for ax in fig.axes():
+    #     ax.legend()
+    ax1.legend()
+    ax2.legend()
+
+    plt.gca()
     plt.show()
+
+    # # Plot TMF
+    # plt.plot(tmf_returns.index, tmf_returns['Investment'], label='TMF (Sim)')
+    # ax = plt.gca()
+    #
+    # tmf_actual.plot(ax=ax, label='TMF (Real)')
+    # ax.legend()
+    #
+    # plt.show()
 
 
