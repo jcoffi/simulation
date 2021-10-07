@@ -21,6 +21,23 @@ def daily_return(prices, remove_first_date=False):
     return returns[1:] if remove_first_date else returns
 
 
+def compound_return(etf: pd.DataFrame, starting_amount: float = 1.0, base_col: str = 'Close') -> pd.DataFrame:
+    total_val = starting_amount
+    df = pd.DataFrame(index=etf.index)
+    df.loc[df.iloc[0], 'Investment'] = total_val
+
+    row_idx = 0
+    for index, _ in df.iterrows():
+        if row_idx != 0:
+            total_val = total_val + total_val * etf.loc[index, base_col]
+
+        # df.at[index, 'Investment'] = total_val
+        df.loc[index, 'Investment'] = total_val
+        row_idx += 1
+
+    return df
+
+
 def process_libor(csv_path: str) -> pd.Series:
     """
     Gets and Process LIBOR
